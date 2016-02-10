@@ -1,7 +1,3 @@
-// ProgressBar.js 0.9.0
-// https://kimmobrunfeldt.github.io/progressbar.js
-// License: MIT
-
 (function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.ProgressBar = f()}})(function(){var define,module,exports;return (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /*! shifty - v1.5.0 - 2015-05-31 - http://jeremyckahn.github.io/shifty */
 ;(function () {
@@ -1636,6 +1632,8 @@ var Circle = function Circle(container, options) {
         ' a {radius},{radius} 0 1 1 0,{2radius}' +
         ' a {radius},{radius} 0 1 1 0,-{2radius}';
 
+    this.containerAspectRatio = 1;
+
     Shape.apply(this, arguments);
 };
 
@@ -1896,6 +1894,8 @@ var SemiCircle = function SemiCircle(container, options) {
         'M 50,50 m -{radius},0' +
         ' a {radius},{radius} 0 1 1 {2radius},0';
 
+    this.containerAspectRatio = 2;
+
     Shape.apply(this, arguments);
 };
 
@@ -1914,8 +1914,8 @@ SemiCircle.prototype._initializeTextElement = function _initializeTextElement(
     if (opts.text.style) {
         // Reset top style
         element.style.top = 'auto';
-
         element.style.bottom = '0';
+
         if (opts.text.alignToBottom) {
             utils.setStyle(element, 'transform', 'translate(-50%, 0)');
         } else {
@@ -2000,6 +2000,7 @@ var Shape = function Shape(container, opts) {
 
     this._container = element;
     this._container.appendChild(svgView.svg);
+    this._warnContainerAspectRatio(this._container);
 
     if (this._opts.svgStyle) {
         utils.setStyles(svgView.svg, this._opts.svgStyle);
@@ -2097,6 +2098,19 @@ Shape.prototype.setText = function setText(text) {
     // Remove previous text node and add new
     this.text.removeChild(this.text.firstChild);
     this.text.appendChild(document.createTextNode(text));
+};
+
+Shape.prototype.setHtml = function setHtml(html) {
+    if (this._progressPath === null) throw new Error(DESTROYED_ERROR);
+
+    if (this.text === null) {
+        // Create new text node
+        this.text = this._createTextElement(this._opts, this._container);
+        this._container.appendChild(this.text);
+    }
+
+    // Set new HTML content
+    this.text.innerHTML = html;
 };
 
 Shape.prototype._createSvgView = function _createSvgView(opts) {
@@ -2206,12 +2220,38 @@ Shape.prototype._trailString = function _trailString(opts) {
     throw new Error('Override this function for each progress bar');
 };
 
+Shape.prototype._warnContainerAspectRatio = function _warnContainerAspectRatio(container) {
+    if (!this.containerAspectRatio) {
+        return;
+    }
+
+    var computedStyle = window.getComputedStyle(container, null);
+    var width = parseFloat(computedStyle.getPropertyValue('width'), 10);
+    var height = parseFloat(computedStyle.getPropertyValue('height'), 10);
+    if (!utils.floatEquals(this.containerAspectRatio, width / height)) {
+        console.warn(
+            'Incorrect aspect ratio of container detected:',
+            computedStyle.getPropertyValue('width') + '(width)',
+            '/',
+            computedStyle.getPropertyValue('height') + '(height)',
+            '=',
+            width / height
+        );
+
+        console.warn(
+            'Aspect ratio of should be',
+            this.containerAspectRatio
+        );
+    }
+};
+
 module.exports = Shape;
 
 },{"./path":5,"./utils":8}],8:[function(require,module,exports){
 // Utility functions
 
 var PREFIXES = 'Webkit Moz O ms'.split(' ');
+var FLOAT_COMPARISON_EPSILON = 0.001;
 
 // Copy all attributes from source object to destination object.
 // destination object is mutated.
@@ -2319,6 +2359,10 @@ function forEachObject(object, callback) {
     }
 }
 
+function floatEquals(a, b) {
+    return Math.abs(a - b) < FLOAT_COMPARISON_EPSILON;
+}
+
 module.exports = {
     extend: extend,
     render: render,
@@ -2328,7 +2372,8 @@ module.exports = {
     isString: isString,
     isFunction: isFunction,
     isObject: isObject,
-    forEachObject: forEachObject
+    forEachObject: forEachObject,
+    floatEquals: floatEquals
 };
 
 },{}]},{},[4])(4)
